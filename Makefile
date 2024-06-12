@@ -171,14 +171,14 @@ starter_dev: generate-secrets
 	fi
 	$(MAKE) set-files-owner SRC=$(CURDIR)/codebase ENVIRONMENT=starter_dev
 	$(MAKE) compose-up
-	docker compose exec -T drupal with-contenv bash -lc 'chown -R nginx:nginx /var/www/drupal/ ; su nginx -s /bin/bash -c "composer install"'
+	$COMPOSE exec -T drupal with-contenv bash -lc 'chown -R nginx:nginx /var/www/drupal/ ; su nginx -s /bin/bash -c "composer install"'
 	$(MAKE) starter-finalize ENVIRONMENT=starter_dev
 
 
 .PHONY: production
 production: init
 	$(MAKE) compose-up
-	docker compose exec -T drupal with-contenv bash -lc 'composer install; chown -R nginx:nginx .'
+	$COMPOSE exec -T drupal with-contenv bash -lc 'composer install; chown -R nginx:nginx .'
 	$(MAKE) starter-finalize ENVIRONMENT=starter
 
 
@@ -225,7 +225,7 @@ help:
 .PHONY: pull
 ## Fetches the latest images from the registry.
 pull: docker-compose.yml
-	docker compose pull
+	$COMPOSE pull
 
 
 .PHONY: build
@@ -246,25 +246,25 @@ push-image:
 .SILENT: docker-compose.yml
 # Create or regenrate docker-compose.yml based on variables in your .env
 docker-compose.yml: $(SERVICES:%=build/docker-compose/docker-compose.%.yml) .env
-	docker compose $(SERVICES:%=-f build/docker-compose/docker-compose.%.yml) config > docker-compose.yml
+	$COMPOSE $(SERVICES:%=-f build/docker-compose/docker-compose.%.yml) config > docker-compose.yml
 
 
 .PHONY: up
 .SILENT: up
 ## Brings up the containers or builds starter if no containers were found.
 up:
-	test -f docker-compose.yml && docker compose up -d --remove-orphans || $(MAKE) starter
+	test -f docker-compose.yml && $COMPOSE up -d --remove-orphans || $(MAKE) starter
 	@echo "\n Sleeping for 10 seconds to wait for Drupal to finish building.\n"
 	sleep 10
-	docker compose exec -T drupal with-contenv bash -lc "for_all_sites update_settings_php"
+	$COMPOSE exec -T drupal with-contenv bash -lc "for_all_sites update_settings_php"
 	$(MAKE) secrets_warning
 
 
 .PHONY: down
 .SILENT: down
-## Brings down the containers. Same as docker compose down --remove-orphans
+## Brings down the containers. Same as $COMPOSE down --remove-orphans
 down:
-	-docker compose down --remove-orphans
+	-$COMPOSE down --remove-orphans
 
 
 .PHONY: env
@@ -277,10 +277,10 @@ env:
 		$(MAKE) pull ; \
 		$(MAKE) up ; \
 		echo -e '\n\n${BLUE}Fixing the error message: ${RESET} ${RED}In Filesystem.php line 203${RESET}\n\n' ; \
-		docker compose exec -T drupal with-contenv bash -lc "cp /var/www/drupal/web/sites/default/settings.php /var/www/drupal/web/sites/default/settings.php.bak" ; \
-		docker compose exec -T drupal with-contenv bash -lc "cp /var/www/drupal/web/sites/default/default.settings.php /var/www/drupal/web/sites/default/settings.php" ; \
-		docker compose exec -T drupal with-contenv bash -lc "chown nginx:nginx /var/www/drupal/web/sites/default/settings.php" ; \
-		docker compose exec -T drupal with-contenv bash -lc "chmod 644 /var/www/drupal/web/sites/default/settings.php" ; \
+		$COMPOSE exec -T drupal with-contenv bash -lc "cp /var/www/drupal/web/sites/default/settings.php /var/www/drupal/web/sites/default/settings.php.bak" ; \
+		$COMPOSE exec -T drupal with-contenv bash -lc "cp /var/www/drupal/web/sites/default/default.settings.php /var/www/drupal/web/sites/default/settings.php" ; \
+		$COMPOSE exec -T drupal with-contenv bash -lc "chown nginx:nginx /var/www/drupal/web/sites/default/settings.php" ; \
+		$COMPOSE exec -T drupal with-contenv bash -lc "chmod 644 /var/www/drupal/web/sites/default/settings.php" ; \
 		$(MAKE) update-settings-php ; \
 	fi
 	if [ ! -f .env ]; then \
@@ -303,28 +303,28 @@ download-default-certs:
 
 # Run Composer Update in your Drupal container
 composer_update:
-	docker compose exec -T drupal with-contenv bash -lc su nginx -s /bin/bash -c "composer update"
+	$COMPOSE exec -T drupal with-contenv bash -lc su nginx -s /bin/bash -c "composer update"
 
 
 reindex-fcrepo-metadata:
 	# Re-index RDF in Fedora
-	docker compose exec -T drupal with-contenv bash -lc 'drush --root /var/www/drupal/web -l $${DRUPAL_DEFAULT_SITE_URL} vbo-exec non_fedora_files emit_file_event --configuration="queue=islandora-indexing-fcrepo-file-external&event=Update"'
-	docker compose exec -T drupal with-contenv bash -lc 'drush --root /var/www/drupal/web -l $${DRUPAL_DEFAULT_SITE_URL} vbo-exec all_taxonomy_terms emit_term_event --configuration="queue=islandora-indexing-fcrepo-content&event=Update"'
-	docker compose exec -T drupal with-contenv bash -lc 'drush --root /var/www/drupal/web -l $${DRUPAL_DEFAULT_SITE_URL} vbo-exec content emit_node_event --configuration="queue=islandora-indexing-fcrepo-content&event=Update"'
-	docker compose exec -T drupal with-contenv bash -lc 'drush --root /var/www/drupal/web -l $${DRUPAL_DEFAULT_SITE_URL} vbo-exec media emit_media_event --configuration="queue=islandora-indexing-fcrepo-media&event=Update"'
+	$COMPOSE exec -T drupal with-contenv bash -lc 'drush --root /var/www/drupal/web -l $${DRUPAL_DEFAULT_SITE_URL} vbo-exec non_fedora_files emit_file_event --configuration="queue=islandora-indexing-fcrepo-file-external&event=Update"'
+	$COMPOSE exec -T drupal with-contenv bash -lc 'drush --root /var/www/drupal/web -l $${DRUPAL_DEFAULT_SITE_URL} vbo-exec all_taxonomy_terms emit_term_event --configuration="queue=islandora-indexing-fcrepo-content&event=Update"'
+	$COMPOSE exec -T drupal with-contenv bash -lc 'drush --root /var/www/drupal/web -l $${DRUPAL_DEFAULT_SITE_URL} vbo-exec content emit_node_event --configuration="queue=islandora-indexing-fcrepo-content&event=Update"'
+	$COMPOSE exec -T drupal with-contenv bash -lc 'drush --root /var/www/drupal/web -l $${DRUPAL_DEFAULT_SITE_URL} vbo-exec media emit_media_event --configuration="queue=islandora-indexing-fcrepo-media&event=Update"'
 
 
 # rebuild Solr search index for your repository
 reindex-solr:
-	docker compose exec -T drupal with-contenv bash -lc 'drush --root /var/www/drupal/web -l $${DRUPAL_DEFAULT_SITE_URL} search-api-reindex'
-	docker compose exec -T drupal with-contenv bash -lc 'drush --root /var/www/drupal/web -l $${DRUPAL_DEFAULT_SITE_URL} search-api-index'
+	$COMPOSE exec -T drupal with-contenv bash -lc 'drush --root /var/www/drupal/web -l $${DRUPAL_DEFAULT_SITE_URL} search-api-reindex'
+	$COMPOSE exec -T drupal with-contenv bash -lc 'drush --root /var/www/drupal/web -l $${DRUPAL_DEFAULT_SITE_URL} search-api-index'
 
 
 # reindex RDF metadata from Drupal into Blazegraph
 reindex-triplestore:
-	docker compose exec -T drupal with-contenv bash -lc 'drush --root /var/www/drupal/web -l $${DRUPAL_DEFAULT_SITE_URL} vbo-exec all_taxonomy_terms emit_term_event --configuration="queue=islandora-indexing-triplestore-index&event=Update"'
-	docker compose exec -T drupal with-contenv bash -lc 'drush --root /var/www/drupal/web -l $${DRUPAL_DEFAULT_SITE_URL} vbo-exec content emit_node_event --configuration="queue=islandora-indexing-triplestore-index&event=Update"'
-	docker compose exec -T drupal with-contenv bash -lc 'drush --root /var/www/drupal/web -l $${DRUPAL_DEFAULT_SITE_URL} vbo-exec media emit_media_event --configuration="queue=islandora-indexing-triplestore-index&event=Update"'
+	$COMPOSE exec -T drupal with-contenv bash -lc 'drush --root /var/www/drupal/web -l $${DRUPAL_DEFAULT_SITE_URL} vbo-exec all_taxonomy_terms emit_term_event --configuration="queue=islandora-indexing-triplestore-index&event=Update"'
+	$COMPOSE exec -T drupal with-contenv bash -lc 'drush --root /var/www/drupal/web -l $${DRUPAL_DEFAULT_SITE_URL} vbo-exec content emit_node_event --configuration="queue=islandora-indexing-triplestore-index&event=Update"'
+	$COMPOSE exec -T drupal with-contenv bash -lc 'drush --root /var/www/drupal/web -l $${DRUPAL_DEFAULT_SITE_URL} vbo-exec media emit_media_event --configuration="queue=islandora-indexing-triplestore-index&event=Update"'
 
 
 .PHONY: set_admin_password
@@ -333,7 +333,7 @@ reindex-triplestore:
 set_admin_password:
 	@$(eval PASSWORD ?= $(shell bash -c 'read -s -p "New Password: " pwd; echo $$pwd'))
 	@echo "\n\nSetting admin password now"
-	docker compose exec -T drupal with-contenv bash -lc 'drush user:password admin "$(PASSWORD)"'
+	$COMPOSE exec -T drupal with-contenv bash -lc 'drush user:password admin "$(PASSWORD)"'
 	echo "$(PASSWORD)" | $(CMD) secrets/live/DRUPAL_DEFAULT_ACCOUNT_PASSWORD >> /dev/null
 	@echo "\ndone."
 
@@ -344,7 +344,7 @@ set_admin_password:
 clean:
 	echo "**DANGER** About to rm your SERVER data subdirs, your docker volumes, codebase, islandora_workbench, certs, secrets, and all untracked/ignored files (including .env)."
 	$(MAKE) confirm
-	-docker compose down -v
+	-$COMPOSE down -v
 	sudo rm -fr codebase islandora_workbench certs secrets/live/*
 	git clean -xffd .
 
@@ -357,8 +357,8 @@ drupal-database-dump:
 ifndef DEST
 	$(error DEST is not set)
 endif
-	docker compose exec -T drupal with-contenv bash -lc 'mysqldump -u $${DRUPAL_DEFAULT_DB_ROOT_USER} -p$${DRUPAL_DEFAULT_DB_ROOT_PASSWORD} -h $${DRUPAL_DEFAULT_DB_HOST} $${DRUPAL_DEFAULT_DB_NAME} > /tmp/dump.sql'
-	docker cp $$(docker compose ps -q drupal):/tmp/dump.sql $(DEST)
+	$COMPOSE exec -T drupal with-contenv bash -lc 'mysqldump -u $${DRUPAL_DEFAULT_DB_ROOT_USER} -p$${DRUPAL_DEFAULT_DB_ROOT_PASSWORD} -h $${DRUPAL_DEFAULT_DB_HOST} $${DRUPAL_DEFAULT_DB_NAME} > /tmp/dump.sql'
+	docker cp $$($COMPOSE ps -q drupal):/tmp/dump.sql $(DEST)
 
 
 # Import Drupal database.
@@ -366,24 +366,24 @@ drupal-database-import: $(SRC)
 ifndef SRC
 	$(error SRC is not set)
 endif
-	docker cp "$(SRC)" $$(docker compose ps -q drupal):/tmp/dump.sql
+	docker cp "$(SRC)" $$($COMPOSE ps -q drupal):/tmp/dump.sql
 	# Need to specify the root user to import the database otherwise it will fail due to permissions.
-	docker compose exec -T drupal with-contenv bash -lc 'chown root:root /tmp/dump.sql && mysql -u $${DRUPAL_DEFAULT_DB_ROOT_USER} -p$${DRUPAL_DEFAULT_DB_ROOT_PASSWORD} -h $${DRUPAL_DEFAULT_DB_HOST} $${DRUPAL_DEFAULT_DB_NAME} < /tmp/dump.sql'
-	docker compose exec -T drupal with-contenv bash -lc 'drush cache-rebuild'
+	$COMPOSE exec -T drupal with-contenv bash -lc 'chown root:root /tmp/dump.sql && mysql -u $${DRUPAL_DEFAULT_DB_ROOT_USER} -p$${DRUPAL_DEFAULT_DB_ROOT_PASSWORD} -h $${DRUPAL_DEFAULT_DB_HOST} $${DRUPAL_DEFAULT_DB_NAME} < /tmp/dump.sql'
+	$COMPOSE exec -T drupal with-contenv bash -lc 'drush cache-rebuild'
 
 
 .PHONY: config-export
 .SILENT: config-export
 ## Exports the sites configuration.
 config-export:
-	docker compose exec -T drupal drush -l $(SITE) config:export -y
+	$COMPOSE exec -T drupal drush -l $(SITE) config:export -y
 
 
 .PHONY: config-import
 .SILENT: config-import
 ## Import the sites configuration. N.B You may need to run this multiple times in succession due to errors in the configurations dependencies.
 config-import: set-site-uuid delete-shortcut-entities
-	docker compose exec -T drupal drush -l $(SITE) config:import -y
+	$COMPOSE exec -T drupal drush -l $(SITE) config:import -y
 
 
 # dump Drupal's public files as zipped tarball
@@ -391,8 +391,8 @@ drupal-public-files-dump:
 ifndef DEST
 	$(error DEST is not set)
 endif
-	docker compose exec -T drupal with-contenv bash -lc 'tar zcvf /tmp/public-files.tgz -C /var/www/drupal/web/sites/default/files ${PUBLIC_FILES_TAR_DUMP_PATH}'
-	docker cp $$(docker compose ps -q drupal):/tmp/public-files.tgz $(DEST)
+	$COMPOSE exec -T drupal with-contenv bash -lc 'tar zcvf /tmp/public-files.tgz -C /var/www/drupal/web/sites/default/files ${PUBLIC_FILES_TAR_DUMP_PATH}'
+	docker cp $$($COMPOSE ps -q drupal):/tmp/public-files.tgz $(DEST)
 
 
 # import Drupal's public files from zipped tarball
@@ -400,8 +400,8 @@ drupal-public-files-import: $(SRC)
 ifndef SRC
 	$(error SRC is not set)
 endif
-	docker cp "$(SRC)" $$(docker compose ps -q drupal):/tmp/public-files.tgz
-	docker compose exec -T drupal with-contenv bash -lc 'tar zxvf /tmp/public-files.tgz -C /var/www/drupal/web/sites/default/files && chown -R nginx:nginx /var/www/drupal/web/sites/default/files && rm /tmp/public-files.tgz'
+	docker cp "$(SRC)" $$($COMPOSE ps -q drupal):/tmp/public-files.tgz
+	$COMPOSE exec -T drupal with-contenv bash -lc 'tar zxvf /tmp/public-files.tgz -C /var/www/drupal/web/sites/default/files && chown -R nginx:nginx /var/www/drupal/web/sites/default/files && rm /tmp/public-files.tgz'
 
 
 # Dump fcrepo as zipped tarball
@@ -409,9 +409,9 @@ fcrepo-export:
 ifndef DEST
 	$(error DEST is not set)
 endif
-	docker compose exec -T fcrepo with-contenv bash -lc 'tar zcvf fcrepo-export.tgz -C /data/home/data/ocfl-root/ .'
-	docker compose exec -T fcrepo with-contenv bash -lc 'mv fcrepo-export.tgz /tmp'
-	docker cp $$(docker compose ps -q fcrepo):/tmp/fcrepo-export.tgz $(DEST)
+	$COMPOSE exec -T fcrepo with-contenv bash -lc 'tar zcvf fcrepo-export.tgz -C /data/home/data/ocfl-root/ .'
+	$COMPOSE exec -T fcrepo with-contenv bash -lc 'mv fcrepo-export.tgz /tmp'
+	docker cp $$($COMPOSE ps -q fcrepo):/tmp/fcrepo-export.tgz $(DEST)
 
 
 # Import fcrepo from zipped tarball
@@ -419,11 +419,11 @@ fcrepo-import: $(SRC)
 ifndef SRC
 	$(error SRC is not set)
 endif
-	docker cp "$(SRC)" $$(docker compose ps -q fcrepo):/tmp/fcrepo-export.tgz
-	docker compose exec -T fcrepo with-contenv bash -lc 'rm -r /data/home/data/ocfl-root/*'
-	docker compose exec -T fcrepo with-contenv bash -lc 'tar zxvf /tmp/fcrepo-export.tgz -C /data/home/data/ocfl-root/ && chown -R tomcat:tomcat /data/home/data/ocfl-root/ && rm /tmp/fcrepo-export.tgz'
-	docker compose exec -T mariadb with-contenv bash -lc 'mysql -e "drop database fcrepo;"'
-	docker compose restart fcrepo
+	docker cp "$(SRC)" $$($COMPOSE ps -q fcrepo):/tmp/fcrepo-export.tgz
+	$COMPOSE exec -T fcrepo with-contenv bash -lc 'rm -r /data/home/data/ocfl-root/*'
+	$COMPOSE exec -T fcrepo with-contenv bash -lc 'tar zxvf /tmp/fcrepo-export.tgz -C /data/home/data/ocfl-root/ && chown -R tomcat:tomcat /data/home/data/ocfl-root/ && rm /tmp/fcrepo-export.tgz'
+	$COMPOSE exec -T mariadb with-contenv bash -lc 'mysql -e "drop database fcrepo;"'
+	$COMPOSE restart fcrepo
 
 
 # Dump fcrepo as zipped tarball
@@ -431,9 +431,9 @@ fcrepo5-export:
 ifndef DEST
 	$(error DEST is not set)
 endif
-	docker compose exec -T fcrepo with-contenv bash -lc 'java -jar /opt/tomcat/fcrepo-import-export-1.0.1.jar --mode export -r http://$(DOMAIN):8081/fcrepo/rest -d /tmp/fcrepo-export -b -u $${FCREPO_TOMCAT_ADMIN_USER}:$${FCREPO_TOMCAT_ADMIN_PASSWORD}'
-	docker compose exec -T fcrepo with-contenv bash -lc 'cd /tmp && tar zcvf fcrepo-export.tgz fcrepo-export'
-	docker cp $$(docker compose ps -q fcrepo):/tmp/fcrepo-export.tgz $(DEST)
+	$COMPOSE exec -T fcrepo with-contenv bash -lc 'java -jar /opt/tomcat/fcrepo-import-export-1.0.1.jar --mode export -r http://$(DOMAIN):8081/fcrepo/rest -d /tmp/fcrepo-export -b -u $${FCREPO_TOMCAT_ADMIN_USER}:$${FCREPO_TOMCAT_ADMIN_PASSWORD}'
+	$COMPOSE exec -T fcrepo with-contenv bash -lc 'cd /tmp && tar zcvf fcrepo-export.tgz fcrepo-export'
+	docker cp $$($COMPOSE ps -q fcrepo):/tmp/fcrepo-export.tgz $(DEST)
 
 
 # Import fcrepo from zipped tarball
@@ -442,21 +442,21 @@ ifndef SRC
 	$(error SRC is not set)
 endif
 	$(MAKE) -B docker-compose.yml DISABLE_SYN=true
-	docker compose up -d fcrepo
-	docker cp "$(SRC)" $$(docker compose ps -q fcrepo):/tmp/fcrepo-export.tgz
-	docker compose exec -T fcrepo with-contenv bash -lc 'cd /tmp && tar zxvf fcrepo-export.tgz && chown -R tomcat:tomcat fcrepo-export && rm fcrepo-export.tgz'
+	$COMPOSE up -d fcrepo
+	docker cp "$(SRC)" $$($COMPOSE ps -q fcrepo):/tmp/fcrepo-export.tgz
+	$COMPOSE exec -T fcrepo with-contenv bash -lc 'cd /tmp && tar zxvf fcrepo-export.tgz && chown -R tomcat:tomcat fcrepo-export && rm fcrepo-export.tgz'
 ifeq ($(FEDORA_6), true)
-	docker compose exec -T fcrepo with-contenv bash -lc 'java -jar fcrepo-upgrade-utils-6.0.0-beta-1.jar -i /tmp/fcrepo-export -o /data/home -s 5+ -t 6+ -u http://${DOMAIN}:8081/fcrepo/rest && chown -R tomcat:tomcat /data/home'
+	$COMPOSE exec -T fcrepo with-contenv bash -lc 'java -jar fcrepo-upgrade-utils-6.0.0-beta-1.jar -i /tmp/fcrepo-export -o /data/home -s 5+ -t 6+ -u http://${DOMAIN}:8081/fcrepo/rest && chown -R tomcat:tomcat /data/home'
 ifeq ($(FCREPO_DATABASE_SERVICE), postgresql)
 	$(error Postgresql not implemented yet in fcrepo-import)
 else
-	docker compose exec -T fcrepo with-contenv bash -lc 'mysql -u $${DB_ROOT_USER} -p$${DB_ROOT_PASSWORD} -h $${DB_MYSQL_HOST} -e "DROP DATABASE $${FCREPO_DB_NAME}"'
+	$COMPOSE exec -T fcrepo with-contenv bash -lc 'mysql -u $${DB_ROOT_USER} -p$${DB_ROOT_PASSWORD} -h $${DB_MYSQL_HOST} -e "DROP DATABASE $${FCREPO_DB_NAME}"'
 endif
 else
-	docker compose exec -T fcrepo with-contenv bash -lc 'java -jar /opt/tomcat/fcrepo-import-export-1.0.1.jar --mode import -r http://$(DOMAIN):8081/fcrepo/rest --map http://islandora.traefik.me:8081/fcrepo/rest,http://$(DOMAIN):8081/fcrepo/rest -d /tmp/fcrepo-export -b -u $${TOMCAT_ADMIN_NAME}:$${TOMCAT_ADMIN_PASSWORD}'
+	$COMPOSE exec -T fcrepo with-contenv bash -lc 'java -jar /opt/tomcat/fcrepo-import-export-1.0.1.jar --mode import -r http://$(DOMAIN):8081/fcrepo/rest --map http://islandora.traefik.me:8081/fcrepo/rest,http://$(DOMAIN):8081/fcrepo/rest -d /tmp/fcrepo-export -b -u $${TOMCAT_ADMIN_NAME}:$${TOMCAT_ADMIN_PASSWORD}'
 endif
 	$(MAKE) -B docker-compose.yml
-	docker compose up -d fcrepo
+	$COMPOSE up -d fcrepo
 
 
 ##############################################
@@ -517,23 +517,23 @@ endif
 .PHONY: remove_standard_profile_references_from_config
 .SILENT: remove_standard_profile_references_from_config
 remove_standard_profile_references_from_config:
-	docker compose exec -T drupal with-contenv bash -lc "remove_standard_profile_references_from_config"
+	$COMPOSE exec -T drupal with-contenv bash -lc "remove_standard_profile_references_from_config"
 
 
 .PHONY: drupal-database
 ## Creates required databases for drupal site(s) using environment variables.
 .SILENT: drupal-database
 drupal-database:
-	docker compose exec -T drupal timeout 300 bash -c "while ! test -e /var/run/nginx/nginx.pid -a -e $(PHP_FPM_PID); do echo 'Waiting for nginx and php-fpm'; sleep 1; done"
-	docker compose exec -T drupal with-contenv bash -lc "for_all_sites create_database"
+	$COMPOSE exec -T drupal timeout 300 bash -c "while ! test -e /var/run/nginx/nginx.pid -a -e $(PHP_FPM_PID); do echo 'Waiting for nginx and php-fpm'; sleep 1; done"
+	$COMPOSE exec -T drupal with-contenv bash -lc "for_all_sites create_database"
 
 
 .PHONY: update-settings-php
 ## Updates settings.php according to the environment variables.
 .SILENT: update-settings-php
 update-settings-php:
-	docker compose exec -T drupal with-contenv bash -lc "if [ ! -f /var/www/drupal/web/sites/default/settings.php ]; then cp /var/www/drupal/web/sites/default/default.settings.php  /var/www/drupal/web/sites/default/settings.php; fi"
-	docker compose exec -T drupal with-contenv bash -lc "for_all_sites update_settings_php"
+	$COMPOSE exec -T drupal with-contenv bash -lc "if [ ! -f /var/www/drupal/web/sites/default/settings.php ]; then cp /var/www/drupal/web/sites/default/default.settings.php  /var/www/drupal/web/sites/default/settings.php; fi"
+	$COMPOSE exec -T drupal with-contenv bash -lc "for_all_sites update_settings_php"
 	# Make sure the host user can read the settings.php files after they have been updated.
 	if [ -d ./codebase ]; then sudo find ./codebase -type f -name "settings.php" -exec chown $(shell id -u):101 {} \;; fi
 
@@ -543,14 +543,14 @@ update-settings-php:
 .PHONY: delete-shortcut-entities
 .SILENT: delete-shortcut-entities
 delete-shortcut-entities:
-	docker compose exec -T drupal drush -l $(SITE) entity:delete shortcut_set
+	$COMPOSE exec -T drupal drush -l $(SITE) entity:delete shortcut_set
 
 
 .PHONY: hydrate
 .SILENT: hydrate
 ## Reconstitute the site from environment variables.
 hydrate: update-settings-php update-config-from-environment solr-cores namespaces run-islandora-migrations
-	docker compose exec -T drupal drush cr -y
+	$COMPOSE exec -T drupal drush cr -y
 
 
 .PHONY: login
@@ -558,7 +558,7 @@ hydrate: update-settings-php update-config-from-environment solr-cores namespace
 ## Runs "drush uli" to provide a direct login link for user 1
 login:
 	echo "\n\n=========== LOGIN ==========="
-	docker compose exec -T drupal with-contenv bash -lc "drush uli --uri=$(DOMAIN)"
+	$COMPOSE exec -T drupal with-contenv bash -lc "drush uli --uri=$(DOMAIN)"
 	echo "=============================\n"
 
 .PHONY: init
@@ -573,15 +573,15 @@ starter-init: init
 
 .PHONY: starter-finalize
 starter-finalize:
-	docker compose exec -T drupal with-contenv bash -lc 'chown -R nginx:nginx . ; echo "Chown Complete"'
+	$COMPOSE exec -T drupal with-contenv bash -lc 'chown -R nginx:nginx . ; echo "Chown Complete"'
 	$(MAKE) drupal-database update-settings-php
-	docker compose exec -T drupal with-contenv bash -lc "drush si -y --existing-config minimal --account-pass '$(shell cat secrets/live/DRUPAL_DEFAULT_ACCOUNT_PASSWORD)'"
-	docker compose exec -T drupal with-contenv bash -lc "drush cr"
-	docker compose exec -T drupal with-contenv bash -lc "drush -l $(SITE) user:role:add fedoraadmin admin"
+	$COMPOSE exec -T drupal with-contenv bash -lc "drush si -y --existing-config minimal --account-pass '$(shell cat secrets/live/DRUPAL_DEFAULT_ACCOUNT_PASSWORD)'"
+	$COMPOSE exec -T drupal with-contenv bash -lc "drush cr"
+	$COMPOSE exec -T drupal with-contenv bash -lc "drush -l $(SITE) user:role:add fedoraadmin admin"
 	@echo "Checking if Solr's healthy"
-	docker compose exec -T solr bash -c 'curl -s http://localhost:8983/solr/admin/info/system?wt=json' | jq -r .lucene || (echo "Solr is not healthy, waiting 10 seconds." && sleep 10)
+	$COMPOSE exec -T solr bash -c 'curl -s http://localhost:8983/solr/admin/info/system?wt=json' | jq -r .lucene || (echo "Solr is not healthy, waiting 10 seconds." && sleep 10)
 	MIGRATE_IMPORT_USER_OPTION=--userid=1 $(MAKE) hydrate
-	docker compose exec -T drupal with-contenv bash -lc 'drush -l $(SITE) migrate:import --userid=1 --tag=islandora'
+	$COMPOSE exec -T drupal with-contenv bash -lc 'drush -l $(SITE) migrate:import --userid=1 --tag=islandora'
 	$(MAKE) login
 	$(MAKE) wait-for-drupal-locally
 
@@ -589,7 +589,7 @@ starter-finalize:
 ## Installs drupal site(s) using environment variables.
 .SILENT: install
 install: drupal-database
-	docker compose exec -T drupal with-contenv bash -lc "for_all_sites install_site"
+	$COMPOSE exec -T drupal with-contenv bash -lc "for_all_sites install_site"
 
 
 .PHONY: update-config-from-environment
@@ -597,12 +597,12 @@ install: drupal-database
 ## Allow all commands to fail as the user may not have all the modules.
 .SILENT: update-config-from-environment
 update-config-from-environment:
-	-docker compose exec -T drupal with-contenv bash -lc "for_all_sites configure_islandora_module"
-	-docker compose exec -T drupal with-contenv bash -lc "for_all_sites configure_jwt_module"
-	-docker compose exec -T drupal with-contenv bash -lc "for_all_sites configure_islandora_default_module"
-	-docker compose exec -T drupal with-contenv bash -lc "for_all_sites configure_search_api_solr_module"
-	-docker compose exec -T drupal with-contenv bash -lc "for_all_sites configure_openseadragon"
-	-docker compose exec -T drupal with-contenv bash -lc "for_all_sites configure_islandora_default_module"
+	-$COMPOSE exec -T drupal with-contenv bash -lc "for_all_sites configure_islandora_module"
+	-$COMPOSE exec -T drupal with-contenv bash -lc "for_all_sites configure_jwt_module"
+	-$COMPOSE exec -T drupal with-contenv bash -lc "for_all_sites configure_islandora_default_module"
+	-$COMPOSE exec -T drupal with-contenv bash -lc "for_all_sites configure_search_api_solr_module"
+	-$COMPOSE exec -T drupal with-contenv bash -lc "for_all_sites configure_openseadragon"
+	-$COMPOSE exec -T drupal with-contenv bash -lc "for_all_sites configure_islandora_default_module"
 
 
 .PHONY: run-islandora-migrations
@@ -612,21 +612,21 @@ run-islandora-migrations:
 	#docker compose exec -T drupal with-contenv bash -lc "for_all_sites import_islandora_migrations"
 	# this line can be reverted when https://github.com/Islandora-Devops/isle-buildkit/blob/fae704f065435438828c568def2a0cc926cc4b6b/drupal/rootfs/etc/islandora/utilities.sh#L557
 	# has been updated to match
-	docker compose exec -T drupal with-contenv bash -lc 'drush -l $(SITE) migrate:import $(MIGRATE_IMPORT_USER_OPTION) islandora_defaults_tags,islandora_tags'
+	$COMPOSE exec -T drupal with-contenv bash -lc 'drush -l $(SITE) migrate:import $(MIGRATE_IMPORT_USER_OPTION) islandora_defaults_tags,islandora_tags'
 
 
 .PHONY: solr-cores
 ## Creates solr-cores according to the environment variables.
 .SILENT: solr-cores
 solr-cores:
-	docker compose exec -T drupal with-contenv bash -lc "for_all_sites create_solr_core_with_default_config"
+	$COMPOSE exec -T drupal with-contenv bash -lc "for_all_sites create_solr_core_with_default_config"
 
 
 .PHONY: namespaces
 ## Creates namespaces in Blazegraph according to the environment variables.
 .SILENT: namespaces
 namespaces:
-	docker compose exec -T drupal with-contenv bash -lc "for_all_sites create_blazegraph_namespace_with_default_properties"
+	$COMPOSE exec -T drupal with-contenv bash -lc "for_all_sites create_blazegraph_namespace_with_default_properties"
 
 
 # Forces the site uuid to match that in the config_sync_directory so that
@@ -634,7 +634,7 @@ namespaces:
 .PHONY: set-site-uuid
 .SILENT: set-site-uuid
 set-site-uuid:
-	docker compose exec -T drupal with-contenv bash -lc "set_site_uuid"
+	$COMPOSE exec -T drupal with-contenv bash -lc "set_site_uuid"
 
 
 .phony: confirm
@@ -660,22 +660,22 @@ secrets_warning:
 ## Fix missing masonry library.
 fix_masonry:
 	@echo "Latest version of masonry library is ${LATEST_VERSION}"
-	docker compose exec drupal bash -lc "[ -d '/var/www/drupal/web/libraries' ] && exit ; mkdir -p /var/www/drupal/web/libraries ; chmod 755 /var/www/drupal/web/libraries ; chown 1000:nginx /var/www/drupal/web/libraries"
-	docker compose exec drupal bash -lc "cd /var/www/drupal/web/libraries/ ; [ ! -d '/var/www/drupal/web/libraries/masonry' ] && git clone --quiet --branch ${LATEST_VERSION} https://github.com/desandro/masonry.git || echo Ready"
-	docker compose exec drupal bash -lc "cd /var/www/drupal/web/libraries/ ; [ -d '/var/www/drupal/web/libraries/masonry' ] && chmod -R 755 /var/www/drupal/web/libraries/masonry ; chown -R 1000:nginx /var/www/drupal/web/libraries/masonry"
+	$COMPOSE exec drupal bash -lc "[ -d '/var/www/drupal/web/libraries' ] && exit ; mkdir -p /var/www/drupal/web/libraries ; chmod 755 /var/www/drupal/web/libraries ; chown 1000:nginx /var/www/drupal/web/libraries"
+	$COMPOSE exec drupal bash -lc "cd /var/www/drupal/web/libraries/ ; [ ! -d '/var/www/drupal/web/libraries/masonry' ] && git clone --quiet --branch ${LATEST_VERSION} https://github.com/desandro/masonry.git || echo Ready"
+	$COMPOSE exec drupal bash -lc "cd /var/www/drupal/web/libraries/ ; [ -d '/var/www/drupal/web/libraries/masonry' ] && chmod -R 755 /var/www/drupal/web/libraries/masonry ; chown -R 1000:nginx /var/www/drupal/web/libraries/masonry"
 
 .PHONY: fix_views
 .SILENT: fix_views
 ## This fixes a know issues with views when using the make local build. The error must be triggered before this will work.
 fix_views:
 	docker cp scripts/patch_views.sh $$(docker ps --format "{{.Names}}" | grep drupal):/var/www/drupal/patch_views.sh
-	docker compose exec -T drupal with-contenv bash -lc "bash /var/www/drupal/patch_views.sh ; rm /var/www/drupal/patch_views.sh ; drush cr"
+	$COMPOSE exec -T drupal with-contenv bash -lc "bash /var/www/drupal/patch_views.sh ; rm /var/www/drupal/patch_views.sh ; drush cr"
 
 .PHONY: compose-up
 .SILENT: compose-up
 compose-up:
-	docker compose up -d --remove-orphans
-	while ! docker compose exec -T drupal with-contenv bash -lc 'test -d /var/www/drupal'; do \
+	$COMPOSE up -d --remove-orphans
+	while ! $COMPOSE exec -T drupal with-contenv bash -lc 'test -d /var/www/drupal'; do \
 		echo "Waiting for /var/www/drupal directory to be available..."; \
 		sleep 1; \
 	done
