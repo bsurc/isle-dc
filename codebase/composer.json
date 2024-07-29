@@ -51,6 +51,7 @@
         "drupal/islandora": "^2.8.1",
         "drupal/islandora_mirador": "^2",
         "drupal/miniorange_saml": "^3.0",
+        "drupal/oauth_login_oauth2": "^3.0",
         "drupal/openseadragon": "^2",
         "drupal/pathauto": "^1.12",
         "drupal/pdf": "^1.1",
