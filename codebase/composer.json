@@ -37,6 +37,7 @@
         "drupal/citation_select": "^2.0@beta",
         "drupal/coi": "^4.0",
         "drupal/config_update": "^2.0@alpha",
+        "drupal/content_access": "^2.0",
         "drupal/context": "^5@RC",
         "drupal/controlled_access_terms": "^2",
         "drupal/core-composer-scaffold": "^10.1",
