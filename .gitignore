@@ -80,7 +80,7 @@ syn-keys
 
 #===================
 # User can combined serveral docker-compose.yml files using the `config` command.
-docker-compose.yml
+#docker-compose.yml
 
 #===================
 # User overrides for environment variables.
