@@ -214,6 +214,7 @@ services:
     - /root/isle-dc/codebase:/var/www/drupal:delegated
     - drupal-sites-data:/var/www/drupal/web/sites/default/files:rw
     - ./data/private_files:/var/www/data/private_files:rw
+    - ./codebase/assets/settingsfiles/default.settings.php:/var/www/drupal/web/sites/default/default.settings.php
   fcrepo:
     depends_on:
       activemq:
